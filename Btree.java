@@ -1,20 +1,26 @@
 /**
- * Test edit -- Tim
- */
-
-
-
+ * BTree Data Structure
+ * 
+ * @authors Mason Kinney, Timothy Howard
+ */ 
 
 public class Btree {
-	BTreeNode root,current,sibling;
-	public final int degree,k,nodeSize,metaSize=4;
+	
+	/*Holds onto the root node, the node we are currently
+	  looking at, and a node used for splitting*/
+	BTreeNode root, current, sibling;
+	
+	/*Holds onto the degree of the tree, the size of
+	  each node in bytes, and the size of the metadata*/
+	public final int degree,nodeSize,metaSize=4;
+	
+	/*The location of the root node on the disk*/
 	private int rootLocation;
 	
-	public Btree(int degree,int k){
+	public Btree(int degree){
 		this.degree=degree;
-		this.k=k;
-		root=new BTreeNode();
-		nodeSize=(2*k+2)*4+(2*k-1)*12;
+		this.root=new BTreeNode();
+		this.nodeSize=(2*degree+2)*4+(2*degree-1)*12;
 	}
 	
 	public void insert(long value){
