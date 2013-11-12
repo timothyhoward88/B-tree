@@ -110,7 +110,7 @@ public class Btree {
                         while (i>0&&value<data[--i].value) {
                                 data[i+1]=data[i];
                         }
-                        if (data[i].value==value) data[i].count++;
+                        if (data[i].value==value) data[i].incrementFrequency();
                         else data[i]=new TreeObject(value);
                         numItems++;
                 }
@@ -122,39 +122,85 @@ public class Btree {
 
         }
         
-        
+      /**
+      * Tree Object class to hold onto the binary sequence value
+      * and the frequency of the value in the used file.
+      *
+      */
+        public class TreeObject implements Comparable<TreeObject>{
+        	
+            /*Sequence value*/
+    		private long value;
+    		
+    		/*frequency in the file and length of the sequence*/
+            private int frequency;
+            
+            /*Represents the characters for the DNA sequence*/
+            public final char[] codes={'a','c','g','t'};
+            
+            /**
+             * 
+             * @param value
+             * 		The long value representing the sequence
+             * of the characters. This must be in a binary 
+             * representation.
+             * 	Ex - 0010 will be passed in as 2
+             * 		 1000 will be passed in as 8
+             * 
+             * @param sequenceLength
+             * 		The length of the sequence.
+             */
+            public TreeObject(long value){
+                    this.value = value;
+                    frequency=1;
+            }
+            
+            /**
+             * Increments the frequency of this sequence
+             */
+            public void incrementFrequency(){
+            	this.frequency++;
+            }
+            
+            /**
+             * @return
+             * 		the frequency of this sequence
+             */
+            public int getFrequency(){
+            	return this.frequency;
+            }
+            
+            /**
+             * 
+             * @return	The value held in this node. Used
+             * as the key for comparisons.
+             */
+            public long getSequence(){
+            	return this.value;
+            }
+            
+            public String toString(){
+            		
+            	StringBuilder returnVal = new StringBuilder(sequenceLength);
+            		
+            	long mask;
+                char next;
+                for (int i=(sequenceLength-1)*2;i>=0;i-=2){
+                         mask=3<<i;
+                         next=codes[(int)(value&mask)>>i];
+                         returnVal.append(next);
+                 }
+                    
+                return returnVal.toString();
+            }
 
-        private class TreeObject implements Comparable<TreeObject>{
-                private long value;                
-                private int count;
-                public final char[] codes={'a','c','g','t'};
-                
-                public TreeObject(long value){
-                        this.value=value;
-                        count=1;
-                }
-                
-                public String toString(){
-                        long mask;
-                        char next;
-                        StringBuilder rval=new StringBuilder(sequenceLength);
-                        for (int i=(sequenceLength-1)*2;i>=0;i-=2){
-                                mask=3<<i;
-                                next=codes[(int)(value&mask)>>i];
-                                rval.append(next);
-                        }
-                        
-                        return rval.toString();
-                }
-
-                @Override
-                public int compareTo(TreeObject that) {
-                        // TODO Auto-generated method stub
-                        long diff =this.value- that.value;
-                        if (diff<0) return -1;
-                        if (diff==0) return 0;
-                        return 1;
-                }
+            @Override
+            public int compareTo(TreeObject that) {
+                    
+                    long diff = this.value - that.getSequence();
+                    if (diff<0) return -1;
+                    if (diff==0) return 0;
+                    return 1;
+            }
         }
-
-}
+ }
