@@ -1,3 +1,8 @@
+import java.util.LinkedList;
+import java.util.Queue;
+
+
+
 /**
  * BTree Data Structure
  * 
@@ -17,7 +22,8 @@ public class Btree {
         
         /*The location of the root node on the disk*/
         private int rootLocation;
-        
+       
+        //TODO: Throw IO exception in the constructor
         
         /**
          * 
@@ -28,17 +34,111 @@ public class Btree {
          * Size should be taken care of in the class creating the B-Tree.
          */
         public Btree(int degree, int seqLength){
-                this.degree=degree;
+                this.degree = degree;
                 this.sequenceLength = seqLength;
                 this.root = new BTreeNode(metaSize);	//Use metaSize as the offset for the first node.
                 this.nodeSize=(2*degree+2)*4+(2*degree-1)*12;
         }
         
+        /**
+         * Used to deal with root insert/split operations, then acts
+         * as a wrapper method to call the private method to recursively
+         * traverse and insert.
+         * @param value
+         * 		the value to be inserted into the tree
+         */
         public void insert(long value){
-                current=root;
-                
+        	
+        	//Insert if root node is the only leaf
+        	if(root.numChildren == 0 && root.numItems < 2*degree-1){
+        		root.insert(value);
+        		return;
+        	}
+        	
+        	//Create new root if root is full
+        	if(root.numItems == 2*degree-1){
+        		current = root;
+        		TreeObject sentUp = current.getClimbingObject();
+        		sibling = current.split();
+        		root = new BTreeNode(sentUp, current, sibling);
+        		current.setParent(root);
+        		sibling.setParent(root);
+        		for(int i = 0; i < sibling.numChildren; i++){
+        			sibling.children[i].parentNode = sibling;
+        		}
+        	}
+                insert(value, root);         
         }
         
+        /**
+         * Inserts the value into the tree
+         * @param value
+         * 		Value to be inserted
+         * @param currNode
+         * 		the current operating node
+         */
+        private void insert(long value, BTreeNode currNode){
+        	current = currNode;
+        	
+        	//Base Case: Insertion into a leaf node
+        	if(current.numChildren == 0 && current.numItems < 2*degree-1){
+        		current.insert(value);
+        		return;
+        	}
+        	
+        	//Recursively traverse children until leaf node is found
+        	if(current.numChildren > 0 && current.numItems < 2*degree-1){
+        		insert(value, current.getPath(value));
+        		return;
+        	}
+        	
+        	//Sends the value to the parent node and continues insertion
+        	if(current.numItems == 2*degree-1){
+        		TreeObject sentUp = current.getClimbingObject();
+        		sibling = current.split();
+        		sibling.parentNode = current.parentNode;
+        		current.parentNode.insertUp(sentUp, sibling);
+        		
+        		//Set the new node as the parent to its children
+        		for(int i = 0; i < sibling.numChildren; i++){
+        			sibling.children[1].parentNode = sibling;
+        		}
+        		
+        		if(sentUp.value > value)
+        			insert(value, current);
+        		else
+        			insert(value, sibling);
+        	}	
+        	
+        }
+        
+        public void printTreeLevelOrder(){
+        	
+        	Queue<BTreeNode> q = new LinkedList<BTreeNode>();
+        	q.add(root);
+        	int nodeNum = 1;
+        	
+        	while(!q.isEmpty()){
+        		BTreeNode temp = q.remove();
+        		System.out.println("Node  " + nodeNum);
+        		nodeNum++;
+        		System.out.println(temp);
+        		
+        		int i = 0;
+        		
+        		while(i< temp.numChildren){
+        			q.offer(temp.children[i]);
+        			i++;
+        		}
+        	}
+        	
+        }
+        
+        public void printTreeInOrder(){
+        	
+        	
+        	
+        }
 
         /**
          *
@@ -52,11 +152,13 @@ public class Btree {
                 public final int location;
                 
                 /*Array for location of children nodes on the disk*/
-                private int[] children;
+                private BTreeNode[] children;//TODO: Modify for location not reference
                 
                 /*Objects containing long sequence value and frequency count*/
                 private TreeObject[] data;
-        
+                
+                //TODO: For Testing!
+                private BTreeNode parentNode;
                 
                 /**
                  * Create the first node of an empty tree.
@@ -64,26 +166,32 @@ public class Btree {
                  * 		The offset of the node on the disk.
                  */
                 public BTreeNode(int location){
-                        this.children = new int[degree*2];
+                        this.children = new BTreeNode[degree*2];//TODO: Modify for location not reference
                         this.data = new TreeObject [degree*2-1];
                         this.location = location;//replace w/ expression for location in file
+                        this.parentNode = null;//TODO: Modify for location not reference
                         numItems=numChildren=0;
                 }
                 
                 /**create a new root when the former root is split.
                  * @param sentUp
+                 * 		Data sent up
                  * @param child0
+                 * 		Left child
                  * @param child1
+                 * 		Right child
                  */
-                public BTreeNode(long sentUp,int child0,int child1){
-                        children=new int[degree*2];
-                        children[0]=child0;
-                        children[1]=child1;
-                        numChildren=2;
+                //TODO: Modify for location not reference
+                public BTreeNode(TreeObject sentUp,BTreeNode child0,BTreeNode child1){
+                       this. children = new BTreeNode[degree*2];
+                        this.children[0] = child0;
+                        this.children[1] = child1;
+                        this.numChildren = 2;
+                        this.parentNode = null;
                         
-                        data=new TreeObject [degree*2-1];
-                        data[0]=new TreeObject(sentUp);
-                        numItems=1;
+                        this.data = new TreeObject [degree*2-1];
+                        this.data[0] = sentUp; //new TreeObject(sentUp);
+                        this.numItems = 1;
                         
                         location=-1;
                 }
@@ -93,7 +201,29 @@ public class Btree {
                  * @param myHalf
                  * @param myKids
                  */
-                public BTreeNode(long value,TreeObject[] myHalf,int[] myKids){
+                //TODO: Modify for location not reference
+                public BTreeNode(TreeObject[] myHalf,BTreeNode[] myKids){
+                		this.children = new BTreeNode[degree*2];//TODO: Modify for location not reference
+                		this.data = new TreeObject [degree*2-1];
+                		this.numItems = degree-1;
+                		numChildren = 0;
+                		
+                		for(int i = 0; i<myKids.length; i++){
+                		
+                			if(myKids[i] != null)
+                				this.numChildren++;
+                		}
+                		//TODO: Check how the array is going to be passed in to
+                		// 		Properly increment the counts and not count null
+                		//		values.
+                		for(int i = 0; i<myHalf.length; i++){
+                			this.data[i] = myHalf[i];
+                		}
+                		
+                		for(int i = 0; i<myKids.length; i++){
+                			this.children[i] = myKids[i];	
+                		}
+                		
                         location=-1;
                 }
                 
@@ -103,22 +233,161 @@ public class Btree {
 //                public BTreeNode(int offset){
 //                        location=offset;
 //                }
+            
+                /**
+                 * Inserts a value into an existing node when a
+                 * split occurs.
+                 * @param sentUp
+                 * 		The TreeObject being sent up to this node
+                 * @param rightChild
+                 * 		The new right child node
+                 */
+                public void insertUp(TreeObject sentUp, BTreeNode rightChild){
+                	
+                	int i = numItems;
+                   
+                	while (i > 0 && sentUp.value < data[i-1].value) {
+                            data[i] = data[i-1];
+                            
+                            //Move the child nodes accordingly if this isn't a leaf node
+                           this.children[i+1] = this.children[i];
+                    }
+                    data[i] = sentUp;
+                    children[i+1] = rightChild;
+                    this.numItems++;
+                    this.numChildren++;
+                }
                 
+                /**
+                 * Inserts a given value into the BTree
+                 * @param value
+                 * 		The long value to be inserted
+                 * @return
+                 * 		True if the value was inserted, False
+                 * 	if the Node is full
+                 */
                 public void insert(long value){
-                        if(numItems==data.length) split(value);//wrong, does not account for duplicates
-                        int i=numItems;
-                        while (i>0&&value<data[--i].value) {
-                                data[i+1]=data[i];
+                	
+                	if(numItems == 0){
+                		data[0] = new TreeObject(value);
+                		numItems++;
+                		return;
+                	}
+                	
+                        //Increment frequency if already exists
+                		for(int i = 0; i < numItems; i++){
+                			
+                			if(value == data[i].value){
+                				data[i].incrementFrequency();
+                				return;
+                			}
+                		}
+                		
+                		int i = numItems;
+                        while (i > 0 && value < data[i-1].value) {
+                                data[i] = data[i-1];
+                                
+                                //Move the child nodes accordingly if this isn't a leaf node
+                                if(numChildren != 0)
+                                	this.children[i+1] = this.children[i];
+                                i--;
                         }
-                        if (data[i].value==value) data[i].incrementFrequency();
-                        else data[i]=new TreeObject(value);
-                        numItems++;
+                        data[i] = new TreeObject(value);
+                        this.numItems++;
                 }
 
-                private void split(long value) {
-                        // TODO Auto-generated method stub
-                        
+                /**
+                 * Clears the second half of the node for the
+                 * split. 
+                 * @return
+                 * 		The new node created from the split.
+                 */
+                //TODO: Modify to reference location and references
+                public BTreeNode split() {
+                      TreeObject[] temp = new TreeObject[degree*2-1];
+                      BTreeNode[] newChildren = new BTreeNode[degree*2];
+                      
+                      //Set the first value so we can assign both arrays in the for loop
+                      newChildren[0] = this.children[degree];
+                      
+                      
+                      
+                      //Set the new reference and data arrays
+                      for(int i = degree; i < numItems; i++){
+                    	  temp[i-degree] = data[i];
+                    	  newChildren[i-degree+1] = this.children[i+1];
+                    	  this.data[i] = null;
+                    	  this.children[1 + i] = null;
+                      }
+                      
+                    //Clear the spots in the array that didn't get cleared in the loop.
+                      this.children[degree] = null;
+                      this.data[degree-1] = null;
+                      this.numItems = degree-1;
+                      
+                      int newChildCount = 0;
+                      for(int i = 0; i<children.length; i++){
+                    	  if(children[i] != null)
+                    		  newChildCount++;
+                      }
+                      this.numChildren = newChildCount;
+                                           
+                      BTreeNode newNode = new BTreeNode(temp, newChildren);
+                      newNode.parentNode = this.parentNode;
+                      
+                      return newNode;  
                 }
+                
+                /**
+                 * 
+                 * @return
+                 * 		The middle object getting sent to the parent
+                 * node
+                 */
+                public TreeObject getClimbingObject(){
+                	return this.data[degree-1];
+                }
+                
+                //TODO: Modify to reference offset location
+                public void setParent(BTreeNode parent){
+                	this.parentNode = parent;
+                }
+                
+                /**
+                 * 
+                 * @param value
+                 * 		value being compared for insertion
+                 * @return
+                 * 		child node to be checked next
+                 */
+               public BTreeNode getPath(long value){
+            	   
+            	   int i = 0;
+            	   BTreeNode path = children[0];
+            	   
+            	   while(i< numChildren && data[i] != null){
+            		   
+            		if(data[i].value < value){ 
+            			path = children[i+1];
+            			i++;
+            		}
+            		else
+            			break;
+            	   }
+            	   
+            	   return path;
+               }
+               
+               
+               public String toString(){
+            	   String retVal = "";
+            	   for(int i = 0; i < numItems; i++){
+            		   retVal += "\t" + data[i].toString();
+            	   }
+            	   
+            	   retVal += "\n # items \t # children \n    " + numItems + "\t\t   " + numChildren;
+            	   return retVal;
+               }
 
         }
         
@@ -136,7 +405,7 @@ public class Btree {
             private int frequency;
             
             /*Represents the characters for the DNA sequence*/
-            public final char[] codes={'a','c','g','t'};
+            public final char[] codes = {'a','c','g','t'};
             
             /**
              * 
@@ -181,17 +450,17 @@ public class Btree {
             
             public String toString(){
             		
-            	StringBuilder returnVal = new StringBuilder(sequenceLength);
+            		StringBuilder returnVal = new StringBuilder(sequenceLength);
             		
-            	long mask;
-                char next;
-                for (int i=(sequenceLength-1)*2;i>=0;i-=2){
-                         mask=3<<i;
-                         next=codes[(int)(value&mask)>>i];
-                         returnVal.append(next);
-                 }
+            		 long mask;
+                     char next;
+                     for (int i=(sequenceLength-1)*2;i>=0;i-=2){
+                             mask=3<<i;
+                             next=codes[(int)(value&mask)>>i];
+                             returnVal.append(next);
+                     }
                     
-                return returnVal.toString();
+                    return returnVal.toString();
             }
 
             @Override
